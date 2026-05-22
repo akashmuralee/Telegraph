@@ -12,7 +12,7 @@ function colorClassFor({ typedCh, targetCh, isCurrent }) {
 }
 
 export const ReadingPanel = forwardRef(function ReadingPanel(
-  { words, typed, wordIdx, charIdx, finished, timerProgress = 0, onCharClick },
+  { words, typed, wordIdx, charIdx, finished, timerProgress = 0, onCharClick, wpm = 0, accuracy = 100, showStats = false },
   ref
 ) {
   // The progress bar shows TIME remaining for the current word — depletes
@@ -141,9 +141,16 @@ export const ReadingPanel = forwardRef(function ReadingPanel(
         )}
         <span className="relative text-[10px] tracking-[0.16em] uppercase text-ink-3">Word</span>
         <div className="relative flex-1" />
-        <span className="relative text-[11px] text-ink-3 tracking-[0.06em] whitespace-nowrap">
+        <span className="relative text-[11px] text-ink-3 tracking-[0.06em] whitespace-nowrap tabular-nums">
           {wordIdx} / {words.length}
         </span>
+        {showStats && !finished && (
+          <span className="relative flex items-center gap-2 text-[11px] text-ink-3 tracking-[0.06em] whitespace-nowrap tabular-nums pl-2 ml-1 border-l border-line">
+            <span><b className="text-accent font-medium">{wpm}</b> wpm</span>
+            <span className="text-line-2">·</span>
+            <span><b className="text-accent font-medium">{accuracy}</b>%</span>
+          </span>
+        )}
       </div>
 
       <p className="text-center text-ink-3 text-[12px] tracking-[0.04em] mt-2">

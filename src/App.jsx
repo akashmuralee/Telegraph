@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Header } from './components/Header';
 import { Toolbar } from './components/Toolbar';
 import { SettingsDrawer } from './components/SettingsDrawer';
+import { TourOverlay } from './components/TourOverlay';
 import { WritingPanel } from './components/WritingPanel';
 import { ReadingPanel } from './components/ReadingPanel';
 import { TelegraphKey } from './components/TelegraphKey';
@@ -34,6 +35,20 @@ export default function App() {
   // The per-word timer + reading-mode auto-play don't run until the user
   // signals they're ready: first morse press (writing) or Start click (reading).
   const [started, setStarted] = useState(false);
+  // First-visit tour — open from the very first render if the user
+  // hasn't seen it yet. Persisted via localStorage.
+  const [tourOpen, setTourOpen] = useState(() => {
+    try {
+      return !localStorage.getItem('monkey-morse:tour-seen');
+    } catch {
+      return false;
+    }
+  });
+  const closeTour = useCallback(() => {
+    setTourOpen(false);
+    try { localStorage.setItem('monkey-morse:tour-seen', '1'); } catch {}
+  }, []);
+  const openTour = useCallback(() => setTourOpen(true), []);
 
   // Mode-swap fade. `modeFading` drives a quick opacity + translate dip
   // during the swap so writing/reading don't pop in/out.
@@ -211,22 +226,21 @@ export default function App() {
   );
 
   return (
-    <div className="min-h-svh relative">
-      {/* Header — floats at the top of the viewport. Absolute so it doesn't
-          take space from <main>, letting main centre on the full viewport. */}
-      <div className="absolute top-0 left-0 right-0 px-6 pt-6 z-10">
+    <div className="min-h-svh flex flex-col">
+      {/* Header — top of the page, in normal flow so <main> centres the
+          content between header and footer (not within the full viewport). */}
+      <div className="w-full px-6 pt-6">
         <div className="w-full max-w-[880px] mx-auto">
           <Header
-            wpm={test.wpm}
-            accuracy={test.accuracy}
+            onOpenTour={openTour}
             settingsOpen={settingsOpen}
             onToggleSettings={() => setSettingsOpen((o) => !o)}
           />
         </div>
       </div>
 
-      {/* Main — vertically centred in the full viewport. */}
-      <main className="min-h-svh w-full flex flex-col items-center justify-center px-6">
+      {/* Main — fills the remaining space and centres the toolbar + field. */}
+      <main className="flex-1 w-full flex flex-col items-center justify-center px-6">
         <div className="w-full max-w-[880px] flex flex-col">
           <Toolbar
             mode={mode}
@@ -246,6 +260,7 @@ export default function App() {
               Crossfades on mode change so writing/reading don't pop. */}
           <div
             className="relative"
+            data-tour="field"
             style={{
               opacity: modeFading ? 0 : 1,
               transform: modeFading ? 'translateY(6px)' : 'translateY(0)',
@@ -263,6 +278,9 @@ export default function App() {
                 currentSeq={morseKey.currentSeq}
                 timerProgress={timer.progress}
                 visibleLines={VISIBLE_LINES_BY_COUNT[settings.wordCount] ?? 3}
+                wpm={test.wpm}
+                accuracy={test.accuracy}
+                showStats={started}
               />
             )}
 
@@ -283,6 +301,9 @@ export default function App() {
                     finished={test.finished}
                     timerProgress={timer.progress}
                     onCharClick={started ? handleCharClick : undefined}
+                    wpm={test.wpm}
+                    accuracy={test.accuracy}
+                    showStats={started}
                   />
                 </div>
                 <div
@@ -318,22 +339,28 @@ export default function App() {
               />
             )}
           </div>
+
+          {/* "new test" button — sits right under the field so it reads as
+              part of the same block. */}
+          <div className="mt-6 flex justify-center">
+            <Controls onRestart={handleRestart} />
+          </div>
         </div>
       </main>
 
-      {/* Footer — "new test" on top, telegraph key (or matching placeholder)
-          below so the button keeps the same vertical position across modes. */}
-      <footer className="absolute bottom-0 left-0 right-0 px-6 pb-6 z-10 pointer-events-none">
-        <div
-          className="w-full max-w-[880px] mx-auto flex flex-col items-center gap-2 pointer-events-auto"
-          style={{
-            opacity: modeFading ? 0 : 1,
-            transform: modeFading ? 'translateY(6px)' : 'translateY(0)',
-            transition: `opacity ${MODE_FADE_MS}ms ${MODE_EASE}, transform ${MODE_FADE_MS}ms ${MODE_EASE}`,
-          }}
-        >
-          <Controls onRestart={handleRestart} />
-          {mode === 'writing' && !test.finished ? (
+      {/* Footer — telegraph key only (writing mode). Reading mode and
+          the results screen don't need anything here. */}
+      {mode === 'writing' && !test.finished && (
+        <footer className="w-full px-6 pb-6">
+          <div
+            className="w-full max-w-[880px] mx-auto flex justify-center"
+            data-tour="footer"
+            style={{
+              opacity: modeFading ? 0 : 1,
+              transform: modeFading ? 'translateY(6px)' : 'translateY(0)',
+              transition: `opacity ${MODE_FADE_MS}ms ${MODE_EASE}, transform ${MODE_FADE_MS}ms ${MODE_EASE}`,
+            }}
+          >
             <TelegraphKey
               isPressed={morseKey.isPressed}
               onPressDown={async () => {
@@ -342,21 +369,20 @@ export default function App() {
               }}
               onPressUp={morseKey.pressUp}
             />
-          ) : (
-            // Reserve the key's height so the "new test" button doesn't
-            // shift down when we're in reading mode (or test is finished).
-            <div className="h-[220px]" aria-hidden />
-          )}
-        </div>
-      </footer>
+          </div>
+        </footer>
+      )}
 
-      {/* Settings modal — rendered at the page root so it overlays everything. */}
+      {/* Settings modal */}
       <SettingsDrawer
         open={settingsOpen}
         settings={settings}
         onChange={updateSettings}
         onClose={() => setSettingsOpen(false)}
       />
+
+      {/* First-visit tour. */}
+      <TourOverlay open={tourOpen} onClose={closeTour} />
     </div>
   );
 }

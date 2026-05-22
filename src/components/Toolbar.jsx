@@ -43,24 +43,28 @@ export function Toolbar({
 }) {
   return (
     <div className="flex justify-center items-center gap-3 mb-10 flex-wrap">
-      <SegGroup>
-        <Seg active={mode === 'writing'} onClick={() => onModeChange('writing')}>
-          writing
-        </Seg>
-        <Seg active={mode === 'reading'} onClick={() => onModeChange('reading')}>
-          reading
-        </Seg>
-      </SegGroup>
+      <span data-tour="mode">
+        <SegGroup>
+          <Seg active={mode === 'writing'} onClick={() => onModeChange('writing')}>
+            writing
+          </Seg>
+          <Seg active={mode === 'reading'} onClick={() => onModeChange('reading')}>
+            reading
+          </Seg>
+        </SegGroup>
+      </span>
 
       <Sep />
 
-      <SegGroup>
-        {LENGTHS.map((n) => (
-          <Seg key={n} active={wordCount === n} onClick={() => onWordCountChange(n)}>
-            {n}
-          </Seg>
-        ))}
-      </SegGroup>
+      <span data-tour="word-count">
+        <SegGroup>
+          {LENGTHS.map((n) => (
+            <Seg key={n} active={wordCount === n} onClick={() => onWordCountChange(n)}>
+              {n}
+            </Seg>
+          ))}
+        </SegGroup>
+      </span>
 
       {/* Show-morse toggle is only meaningful in writing mode. */}
       {mode === 'writing' && (

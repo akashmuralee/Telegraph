@@ -29,6 +29,9 @@ export function WritingPanel({
   currentSeq,
   timerProgress = 0,
   visibleLines = 3,
+  wpm = 0,
+  accuracy = 100,
+  showStats = false,
 }) {
   const wrapRef = useRef(null);
 
@@ -124,6 +127,13 @@ export function WritingPanel({
         {hint && !finished && expected === undefined && words[wordIdx] && (
           <span className="relative text-[11px] text-ink-3 tracking-[0.08em] whitespace-nowrap">
             next: <b className="text-accent font-medium ml-1.5">space</b>
+          </span>
+        )}
+        {showStats && !finished && (
+          <span className="relative flex items-center gap-2 text-[11px] text-ink-3 tracking-[0.06em] whitespace-nowrap tabular-nums pl-2 ml-1 border-l border-line">
+            <span><b className="text-accent font-medium">{wpm}</b> wpm</span>
+            <span className="text-line-2">·</span>
+            <span><b className="text-accent font-medium">{accuracy}</b>%</span>
           </span>
         )}
       </div>
