@@ -104,13 +104,73 @@ export function useMorsePlayback({ words, ensureAudio, synthRef, containerRef, i
     );
   }, [words, ensureAudio, synthRef, containerRef, isReading, stop]);
 
+  // Plays a single character's morse and animates that one wave.
+  // Used when the user clicks an individual wave block.
+  const playChar = useCallback(async (wIdx, cIdx) => {
+    const word = words[wIdx];
+    if (!word || cIdx >= word.length) return;
+    const letter = word[cIdx];
+    const pattern = REVERSE_MORSE[letter];
+    if (!pattern) return;
+
+    const ok = await ensureAudio();
+    if (!ok) return;
+
+    stop();
+    const token = ++tokenRef.current;
+    playingRef.current = true;
+    onPlayingChangeRef.current?.(true);
+
+    const root = containerRef.current;
+    const rwordEl = root?.querySelectorAll('.rword')[wIdx];
+    const rchar = rwordEl?.children[cIdx];
+
+    const audioStart = Tone.now() + START_OFFSET_MS / 1000;
+    let charMs = 0;
+    for (let pi = 0; pi < pattern.length; pi++) {
+      if (pi > 0) charMs += PLAY_INTRA;
+      const dur = pattern[pi] === '.' ? PLAY_DOT : PLAY_DASH;
+      try {
+        synthRef.current?.triggerAttackRelease(
+          PLAY_FREQ,
+          dur / 1000,
+          audioStart + charMs / 1000
+        );
+      } catch {}
+      charMs += dur;
+    }
+
+    if (rchar) {
+      timeoutsRef.current.push(
+        setTimeout(() => {
+          if (token !== tokenRef.current) return;
+          animateCharStart(rchar, charMs);
+        }, START_OFFSET_MS)
+      );
+      timeoutsRef.current.push(
+        setTimeout(() => {
+          if (token !== tokenRef.current) return;
+          animateCharEnd(rchar);
+        }, START_OFFSET_MS + charMs + 60)
+      );
+    }
+
+    timeoutsRef.current.push(
+      setTimeout(() => {
+        if (token !== tokenRef.current) return;
+        playingRef.current = false;
+        onPlayingChangeRef.current?.(false);
+      }, START_OFFSET_MS + charMs)
+    );
+  }, [words, ensureAudio, synthRef, containerRef, stop]);
+
   useEffect(() => () => stop(), [stop]);
 
   const onPlayingChange = useCallback((fn) => {
     onPlayingChangeRef.current = fn;
   }, []);
 
-  return { playWord, stop, onPlayingChange };
+  return { playWord, playChar, stop, onPlayingChange };
 }
 
 function animateCharStart(rchar, durMs) {

@@ -30,6 +30,12 @@ export default function App() {
   const [mode, setMode] = useState('writing'); // 'writing' | 'reading'
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [readingPace, setReadingPace] = useState('word'); // 'word' | 'letter'
+
+  // Mode-swap fade. `modeFading` drives a quick opacity dip during the swap
+  // so writing/reading don't pop in/out.
+  const [modeFading, setModeFading] = useState(false);
+  const MODE_FADE_MS = 220;
 
   const test = useTypingTest(settings.wordCount);
   const audio = useAudio();
@@ -43,7 +49,6 @@ export default function App() {
     onTimeout: useCallback(() => test.commitSpace(), [test]),
   });
   const readingContainerRef = useRef(null);
-  const [isPlaying, setIsPlaying] = useState(false);
 
   const playback = useMorsePlayback({
     words: test.words,
@@ -52,9 +57,6 @@ export default function App() {
     containerRef: readingContainerRef,
     isReading: mode === 'reading',
   });
-  useEffect(() => {
-    playback.onPlayingChange(setIsPlaying);
-  }, [playback]);
 
   // ── Writing mode: morse key ──
   const morseKey = useMorseKey({
@@ -71,14 +73,25 @@ export default function App() {
     onPressEnd: () => audio.stopBeep(),
   });
 
-  // ── Reading mode: auto-play current word ──
+  // ── Reading mode: auto-play current word (pace = 'word') ──
   useEffect(() => {
     if (mode !== 'reading' || test.finished) return;
+    if (readingPace !== 'word') return;
     if (!test.words.length) return;
     const id = setTimeout(() => playback.playWord(test.wordIdx), 50);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, test.wordIdx, test.words]);
+  }, [mode, readingPace, test.wordIdx, test.words]);
+
+  // ── Reading mode: auto-play current letter (pace = 'letter') ──
+  useEffect(() => {
+    if (mode !== 'reading' || test.finished) return;
+    if (readingPace !== 'letter') return;
+    if (!test.words.length) return;
+    const id = setTimeout(() => playback.playChar(test.wordIdx, test.charIdx), 50);
+    return () => clearTimeout(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mode, readingPace, test.wordIdx, test.charIdx, test.words]);
 
   // ── Reading mode: keyboard input ──
   useEffect(() => {
@@ -134,12 +147,18 @@ export default function App() {
 
   const switchMode = useCallback(
     async (m) => {
+      if (m === mode) return;
       playback.stop();
-      setMode(m);
-      test.restart();
+      setModeFading(true);
+      // Fade out, then swap mode + restart test, then fade back in.
+      setTimeout(() => {
+        setMode(m);
+        test.restart();
+        setModeFading(false);
+      }, MODE_FADE_MS);
       if (m === 'reading') await audio.ensureAudio();
     },
-    [audio, playback, test]
+    [audio, playback, test, mode]
   );
 
   const handleRestart = useCallback(() => {
@@ -147,6 +166,23 @@ export default function App() {
     test.restart();
     morseKey.clearSeq();
   }, [playback, test, morseKey]);
+
+  // Clicking a wave in reading mode plays that letter's morse and, if the
+  // wave is the currently active letter, also commits it as typed.
+  const handleCharClick = useCallback(
+    (wIdx, cIdx) => {
+      playback.playChar(wIdx, cIdx);
+      if (test.finished) return;
+      if (wIdx !== test.wordIdx || cIdx !== test.charIdx) return;
+      const letter = test.words[wIdx]?.[cIdx];
+      if (!letter) return;
+      test.commitChar(letter);
+      if (cIdx + 1 >= test.words[wIdx].length) {
+        test.commitSpace();
+      }
+    },
+    [playback, test]
+  );
 
   return (
     <div className="min-h-svh relative">
@@ -175,11 +211,20 @@ export default function App() {
             onHintChange={(h) => updateSettings({ hint: h })}
             muted={audio.muted}
             onMuteToggle={audio.toggleMute}
+            readingPace={readingPace}
+            onReadingPaceChange={setReadingPace}
           />
 
           {/* Field — the time progress is rendered inside each panel's
-              existing pill (Writing's "Now" / Reading's progress strip). */}
-          <div className="relative">
+              existing pill (Writing's "Now" / Reading's progress strip).
+              Crossfades on mode change so writing/reading don't pop. */}
+          <div
+            className="relative"
+            style={{
+              opacity: modeFading ? 0 : 1,
+              transition: `opacity ${MODE_FADE_MS}ms ease`,
+            }}
+          >
             {!test.finished && mode === 'writing' && (
               <WritingPanel
                 words={test.words}
@@ -202,9 +247,8 @@ export default function App() {
                 wordIdx={test.wordIdx}
                 charIdx={test.charIdx}
                 finished={test.finished}
-                onReplay={() => playback.playWord(test.wordIdx)}
-                isPlaying={isPlaying}
                 timerProgress={timer.progress}
+                onCharClick={handleCharClick}
               />
             )}
 
@@ -218,18 +262,21 @@ export default function App() {
               />
             )}
           </div>
-
-          <div className="mt-8">
-            <Controls onRestart={handleRestart} />
-          </div>
         </div>
       </main>
 
-      {/* Footer — telegraph key floats at the bottom of the viewport,
-          independent of main, so main can centre on the full viewport. */}
+      {/* Footer — "new test" on top, telegraph key (or matching placeholder)
+          below so the button keeps the same vertical position across modes. */}
       <footer className="absolute bottom-0 left-0 right-0 px-6 pb-6 z-10 pointer-events-none">
-        <div className="w-full max-w-[880px] mx-auto flex justify-center pointer-events-auto">
-          {mode === 'writing' && !test.finished && (
+        <div
+          className="w-full max-w-[880px] mx-auto flex flex-col items-center gap-2 pointer-events-auto"
+          style={{
+            opacity: modeFading ? 0 : 1,
+            transition: `opacity ${MODE_FADE_MS}ms ease`,
+          }}
+        >
+          <Controls onRestart={handleRestart} />
+          {mode === 'writing' && !test.finished ? (
             <TelegraphKey
               isPressed={morseKey.isPressed}
               onPressDown={async () => {
@@ -238,6 +285,10 @@ export default function App() {
               }}
               onPressUp={morseKey.pressUp}
             />
+          ) : (
+            // Reserve the key's height so the "new test" button doesn't
+            // shift down when we're in reading mode (or test is finished).
+            <div className="h-[220px]" aria-hidden />
           )}
         </div>
       </footer>

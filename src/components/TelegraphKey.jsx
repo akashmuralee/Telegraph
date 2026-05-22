@@ -64,9 +64,7 @@ export function TelegraphKey({ isPressed, onPressDown, onPressUp }) {
       </button>
 
       <p className="text-[11px] text-ink-3 tracking-[0.06em] text-center leading-[1.6]">
-        tap the knob · or hold <kbd>space</kbd>
-        <br />
-        short press = dot, long press = dash
+        tap the knob · or hold <kbd>space</kbd> short press = dot, long press = dash
       </p>
     </div>
   );

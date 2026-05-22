@@ -46,6 +46,41 @@ function reducer(state, action) {
       return { ...state, wordIdx: next, charIdx: 0 };
     }
 
+    case 'JUMP_TO': {
+      if (state.finished) return state;
+      const { wIdx, cIdx } = action;
+      if (wIdx < 0 || wIdx >= state.words.length) return state;
+      const word = state.words[wIdx];
+      if (cIdx < 0 || cIdx > word.length) return state;
+
+      // Truncate typed state: keep earlier words fully, cut typed[wIdx] at
+      // cIdx, and clear everything after the target word.
+      const typed = state.typed.slice();
+      typed[wIdx] = (typed[wIdx] || '').slice(0, cIdx);
+      for (let i = wIdx + 1; i < typed.length; i++) typed[i] = '';
+
+      // Recompute stats from the surviving typed state.
+      let correctChars = 0;
+      let totalChars = 0;
+      for (let i = 0; i <= wIdx; i++) {
+        const tw = typed[i] || '';
+        const w = state.words[i];
+        for (let j = 0; j < tw.length; j++) {
+          totalChars++;
+          if (tw[j] === w?.[j]) correctChars++;
+        }
+      }
+
+      return {
+        ...state,
+        typed,
+        wordIdx: wIdx,
+        charIdx: cIdx,
+        correctChars,
+        totalChars,
+      };
+    }
+
     case 'BACK': {
       if (state.finished) return state;
       const cur = state.typed[state.wordIdx] || '';
@@ -118,6 +153,7 @@ export function useTypingTest(wordCount) {
     dispatch({ type: 'COMMIT_SPACE' });
   }, [ensureStarted]);
   const back = useCallback(() => dispatch({ type: 'BACK' }), []);
+  const jump = useCallback((wIdx, cIdx) => dispatch({ type: 'JUMP_TO', wIdx, cIdx }), []);
   const restart = useCallback(() => {
     dispatch({ type: 'RESET', count: wordCount });
     startRef.current = null;
@@ -144,6 +180,7 @@ export function useTypingTest(wordCount) {
     commitChar,
     commitSpace,
     back,
+    jump,
     restart,
   };
 }

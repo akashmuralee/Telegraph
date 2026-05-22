@@ -38,9 +38,11 @@ export function Toolbar({
   onHintChange,
   muted,
   onMuteToggle,
+  readingPace,
+  onReadingPaceChange,
 }) {
   return (
-    <div className="flex justify-center items-center gap-3 mb-7 flex-wrap">
+    <div className="flex justify-center items-center gap-3 mb-10 flex-wrap">
       <SegGroup>
         <Seg active={mode === 'writing'} onClick={() => onModeChange('writing')}>
           writing
@@ -60,26 +62,35 @@ export function Toolbar({
         ))}
       </SegGroup>
 
-      {/* Reserve this slot in reading mode too, so the toolbar height
-          doesn't shift when modes change. */}
-      <div
-        className="flex items-center gap-3"
-        style={{
-          visibility: mode === 'writing' ? 'visible' : 'hidden',
-          pointerEvents: mode === 'writing' ? 'auto' : 'none',
-        }}
-        aria-hidden={mode !== 'writing'}
-      >
-        <Sep />
-        <SegGroup>
-          <Seg active={hint} onClick={() => onHintChange(true)}>
-            show morse
-          </Seg>
-          <Seg active={!hint} onClick={() => onHintChange(false)}>
-            hide
-          </Seg>
-        </SegGroup>
-      </div>
+      {/* Show-morse toggle is only meaningful in writing mode. */}
+      {mode === 'writing' && (
+        <>
+          <Sep />
+          <SegGroup>
+            <Seg active={hint} onClick={() => onHintChange(true)}>
+              show morse
+            </Seg>
+            <Seg active={!hint} onClick={() => onHintChange(false)}>
+              hide
+            </Seg>
+          </SegGroup>
+        </>
+      )}
+
+      {/* Reading-pace toggle — play the whole word, or step letter by letter. */}
+      {mode === 'reading' && (
+        <>
+          <Sep />
+          <SegGroup>
+            <Seg active={readingPace === 'word'} onClick={() => onReadingPaceChange('word')}>
+              word
+            </Seg>
+            <Seg active={readingPace === 'letter'} onClick={() => onReadingPaceChange('letter')}>
+              letter
+            </Seg>
+          </SegGroup>
+        </>
+      )}
 
       <Sep />
 
