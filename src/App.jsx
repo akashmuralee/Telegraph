@@ -31,18 +31,22 @@ export default function App() {
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [readingPace, setReadingPace] = useState('word'); // 'word' | 'letter'
+  // The per-word timer + reading-mode auto-play don't run until the user
+  // signals they're ready: first morse press (writing) or Start click (reading).
+  const [started, setStarted] = useState(false);
 
-  // Mode-swap fade. `modeFading` drives a quick opacity dip during the swap
-  // so writing/reading don't pop in/out.
+  // Mode-swap fade. `modeFading` drives a quick opacity + translate dip
+  // during the swap so writing/reading don't pop in/out.
   const [modeFading, setModeFading] = useState(false);
-  const MODE_FADE_MS = 220;
+  const MODE_FADE_MS = 260;
+  const MODE_EASE = 'cubic-bezier(0.4, 0, 0.2, 1)';
 
   const test = useTypingTest(settings.wordCount);
   const audio = useAudio();
 
-  // Per-word countdown. When time runs out we just advance to the next word.
+  // Per-word countdown. Only runs once the test has been kicked off.
   const timer = useWordTimer({
-    enabled: !test.finished,
+    enabled: started && !test.finished,
     durationMs: settings.secondsPerWord * 1000,
     wordIdx: test.wordIdx,
     testVersion: test.version,
@@ -69,36 +73,42 @@ export default function App() {
     onPressStart: async () => {
       await audio.ensureAudio();
       audio.playBeep();
+      // First press kicks off the timer + WPM tracker.
+      if (!started) {
+        setStarted(true);
+        test.begin();
+      }
     },
     onPressEnd: () => audio.stopBeep(),
   });
 
   // ── Reading mode: auto-play current word (pace = 'word') ──
   useEffect(() => {
-    if (mode !== 'reading' || test.finished) return;
+    if (mode !== 'reading' || test.finished || !started) return;
     if (readingPace !== 'word') return;
     if (!test.words.length) return;
     const id = setTimeout(() => playback.playWord(test.wordIdx), 50);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, readingPace, test.wordIdx, test.words]);
+  }, [mode, readingPace, test.wordIdx, test.words, started]);
 
   // ── Reading mode: auto-play current letter (pace = 'letter') ──
   useEffect(() => {
-    if (mode !== 'reading' || test.finished) return;
+    if (mode !== 'reading' || test.finished || !started) return;
     if (readingPace !== 'letter') return;
     if (!test.words.length) return;
     const id = setTimeout(() => playback.playChar(test.wordIdx, test.charIdx), 50);
     return () => clearTimeout(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode, readingPace, test.wordIdx, test.charIdx, test.words]);
+  }, [mode, readingPace, test.wordIdx, test.charIdx, test.words, started]);
 
-  // ── Reading mode: keyboard input ──
+  // ── Reading mode: keyboard input (ignored until the user has clicked Start) ──
   useEffect(() => {
     if (mode !== 'reading') return;
     const onKey = (e) => {
       if (test.finished) return;
-      if (e.key === 'Tab') { e.preventDefault(); test.restart(); return; }
+      if (e.key === 'Tab') { e.preventDefault(); test.restart(); setStarted(false); return; }
+      if (!started) return; // Wait for Start before accepting input.
       if (e.key === 'Backspace' || e.key === 'Delete') {
         e.preventDefault();
         test.back();
@@ -121,7 +131,7 @@ export default function App() {
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [mode, test]);
+  }, [mode, test, started]);
 
   // ── Writing-mode global shortcuts ──
   useEffect(() => {
@@ -149,8 +159,9 @@ export default function App() {
     async (m) => {
       if (m === mode) return;
       playback.stop();
+      setStarted(false);
       setModeFading(true);
-      // Fade out, then swap mode + restart test, then fade back in.
+      // Fade out, swap mode + restart test, fade back in.
       setTimeout(() => {
         setMode(m);
         test.restart();
@@ -158,6 +169,7 @@ export default function App() {
       }, MODE_FADE_MS);
       if (m === 'reading') await audio.ensureAudio();
     },
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [audio, playback, test, mode]
   );
 
@@ -165,7 +177,21 @@ export default function App() {
     playback.stop();
     test.restart();
     morseKey.clearSeq();
+    setStarted(false);
   }, [playback, test, morseKey]);
+
+  const startTest = useCallback(async () => {
+    if (started) return;
+    await audio.ensureAudio();
+    setStarted(true);
+    test.begin();
+  }, [audio, started, test]);
+
+  // Reset the started flag whenever the word count changes (the typing
+  // hook restarts internally; we just need to gate the new run).
+  useEffect(() => {
+    setStarted(false);
+  }, [settings.wordCount]);
 
   // Clicking a wave in reading mode plays that letter's morse and, if the
   // wave is the currently active letter, also commits it as typed.
@@ -222,7 +248,8 @@ export default function App() {
             className="relative"
             style={{
               opacity: modeFading ? 0 : 1,
-              transition: `opacity ${MODE_FADE_MS}ms ease`,
+              transform: modeFading ? 'translateY(6px)' : 'translateY(0)',
+              transition: `opacity ${MODE_FADE_MS}ms ${MODE_EASE}, transform ${MODE_FADE_MS}ms ${MODE_EASE}`,
             }}
           >
             {!test.finished && mode === 'writing' && (
@@ -240,16 +267,42 @@ export default function App() {
             )}
 
             {!test.finished && mode === 'reading' && (
-              <ReadingPanel
-                ref={readingContainerRef}
-                words={test.words}
-                typed={test.typed}
-                wordIdx={test.wordIdx}
-                charIdx={test.charIdx}
-                finished={test.finished}
-                timerProgress={timer.progress}
-                onCharClick={handleCharClick}
-              />
+              <div className="relative">
+                <div
+                  className={[
+                    'transition-[filter,opacity] duration-300 ease-out',
+                    started ? '' : 'blur-sm opacity-50 pointer-events-none select-none',
+                  ].join(' ')}
+                >
+                  <ReadingPanel
+                    ref={readingContainerRef}
+                    words={test.words}
+                    typed={test.typed}
+                    wordIdx={test.wordIdx}
+                    charIdx={test.charIdx}
+                    finished={test.finished}
+                    timerProgress={timer.progress}
+                    onCharClick={started ? handleCharClick : undefined}
+                  />
+                </div>
+                <div
+                  className={[
+                    'absolute inset-0 flex items-center justify-center z-10',
+                    'transition-[opacity,transform] duration-300 ease-out',
+                    started
+                      ? 'opacity-0 scale-95 pointer-events-none'
+                      : 'opacity-100 scale-100',
+                  ].join(' ')}
+                  aria-hidden={started}
+                >
+                  <button
+                    onClick={startTest}
+                    className="px-10 py-3 rounded-full bg-accent text-shell text-[12px] tracking-[0.18em] uppercase font-medium hover:bg-accent/90 active:scale-[0.98] transition-transform"
+                  >
+                    start
+                  </button>
+                </div>
+              </div>
             )}
 
             {test.finished && (
@@ -259,6 +312,9 @@ export default function App() {
                 elapsed={test.elapsed}
                 correctChars={test.correctChars}
                 totalChars={test.totalChars}
+                rawWpm={test.rawWpm}
+                samples={test.samples}
+                wordCount={settings.wordCount}
               />
             )}
           </div>
@@ -272,7 +328,8 @@ export default function App() {
           className="w-full max-w-[880px] mx-auto flex flex-col items-center gap-2 pointer-events-auto"
           style={{
             opacity: modeFading ? 0 : 1,
-            transition: `opacity ${MODE_FADE_MS}ms ease`,
+            transform: modeFading ? 'translateY(6px)' : 'translateY(0)',
+            transition: `opacity ${MODE_FADE_MS}ms ${MODE_EASE}, transform ${MODE_FADE_MS}ms ${MODE_EASE}`,
           }}
         >
           <Controls onRestart={handleRestart} />

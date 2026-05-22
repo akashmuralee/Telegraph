@@ -116,6 +116,9 @@ export function useTypingTest(wordCount) {
   const startRef = useRef(null);
   const [wpm, setWpm] = useState(0);
   const [elapsed, setElapsed] = useState(0);
+  // Per-second WPM samples for the results chart.
+  // Each entry: { t (sec), wpm (corrected), rawWpm (all chars) }
+  const [samples, setSamples] = useState([]);
 
   // Reset whenever wordCount changes.
   useEffect(() => {
@@ -123,35 +126,47 @@ export function useTypingTest(wordCount) {
     startRef.current = null;
     setWpm(0);
     setElapsed(0);
+    setSamples([]);
   }, [wordCount]);
 
-  // WPM ticker.
+  // WPM ticker — also records one sample per ~second.
   useEffect(() => {
     if (!startRef.current || state.finished) return;
     const id = setInterval(() => {
       const ms = Date.now() - startRef.current;
+      const sec = ms / 1000;
       const mins = ms / 60000;
-      setElapsed(ms / 1000);
-      if (mins > 0) setWpm(Math.round(state.correctChars / 5 / mins));
+      setElapsed(sec);
+      if (mins <= 0) return;
+      const w = Math.round(state.correctChars / 5 / mins);
+      const r = Math.round(state.totalChars / 5 / mins);
+      setWpm(w);
+      setSamples((prev) => {
+        const last = prev[prev.length - 1];
+        if (!last || sec - last.t >= 1) {
+          return [...prev, { t: sec, wpm: w, rawWpm: r }];
+        }
+        return prev;
+      });
     }, 500);
     return () => clearInterval(id);
-  }, [state.correctChars, state.finished]);
+  }, [state.correctChars, state.totalChars, state.finished]);
 
-  const ensureStarted = useCallback(() => {
+  const begin = useCallback(() => {
     if (!startRef.current) startRef.current = Date.now();
   }, []);
 
   const commitChar = useCallback(
     (ch) => {
-      ensureStarted();
+      begin();
       dispatch({ type: 'COMMIT_CHAR', ch });
     },
-    [ensureStarted]
+    [begin]
   );
   const commitSpace = useCallback(() => {
-    ensureStarted();
+    begin();
     dispatch({ type: 'COMMIT_SPACE' });
-  }, [ensureStarted]);
+  }, [begin]);
   const back = useCallback(() => dispatch({ type: 'BACK' }), []);
   const jump = useCallback((wIdx, cIdx) => dispatch({ type: 'JUMP_TO', wIdx, cIdx }), []);
   const restart = useCallback(() => {
@@ -159,6 +174,7 @@ export function useTypingTest(wordCount) {
     startRef.current = null;
     setWpm(0);
     setElapsed(0);
+    setSamples([]);
   }, [wordCount]);
 
   // Final WPM/accuracy when finished.
@@ -172,11 +188,20 @@ export function useTypingTest(wordCount) {
       })()
     : wpm;
 
+  // Raw WPM = all chars typed (correct + incorrect) per minute.
+  const rawWpm = (() => {
+    const mins = elapsed / 60;
+    return mins > 0 ? Math.round(state.totalChars / 5 / mins) : 0;
+  })();
+
   return {
     ...state,
     wpm: finalWpm,
+    rawWpm,
     accuracy,
     elapsed,
+    samples,
+    begin,
     commitChar,
     commitSpace,
     back,
