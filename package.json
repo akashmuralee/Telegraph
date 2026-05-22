@@ -1,0 +1,24 @@
+{
+  "name": "monkey-morse",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Monkey Morse — monkeytype-style morse code typing test (writing + reading). Vite + React + Tailwind.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "tone": "^14.8.49"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "autoprefixer": "^10.4.20",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
+    "vite": "^6.0.3"
+  }
+}

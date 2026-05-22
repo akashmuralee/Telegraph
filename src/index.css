@@ -1,0 +1,99 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html, body { background: #0e0e0d; }
+  body {
+    -webkit-user-select: none;
+    user-select: none;
+    touch-action: manipulation;
+    min-height: 100svh;
+  }
+}
+
+@layer components {
+  /* Blinking caret to the left of the current character (typing test cursor). */
+  .caret-left::before {
+    content: '';
+    position: absolute;
+    left: -1px;
+    top: 0.18em;
+    height: 1em;
+    width: 2px;
+    background: theme('colors.accent.DEFAULT');
+    border-radius: 1px;
+    animation: blink 1.1s step-end infinite;
+  }
+
+  /* Range slider — thick track + prominent "dot" thumb */
+  input[type='range'] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 6px;
+    border-radius: 9999px;
+    background: theme('colors.line.2');
+    outline: none;
+    cursor: pointer;
+  }
+  input[type='range']::-webkit-slider-runnable-track {
+    height: 6px;
+    border-radius: 9999px;
+    background: transparent;
+  }
+  input[type='range']::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 18px;
+    height: 18px;
+    margin-top: -6px;
+    border-radius: 50%;
+    background: theme('colors.accent.DEFAULT');
+    cursor: pointer;
+    border: 3px solid theme('colors.shell');
+    box-shadow: 0 0 0 1px theme('colors.accent.DEFAULT');
+    transition: transform 0.1s ease-out;
+  }
+  input[type='range']::-webkit-slider-thumb:hover { transform: scale(1.08); }
+  input[type='range']::-webkit-slider-thumb:active { transform: scale(1.18); }
+  input[type='range']::-moz-range-track {
+    height: 6px;
+    border-radius: 9999px;
+    background: transparent;
+  }
+  input[type='range']::-moz-range-thumb {
+    width: 18px;
+    height: 18px;
+    border-radius: 50%;
+    background: theme('colors.accent.DEFAULT');
+    cursor: pointer;
+    border: 3px solid theme('colors.shell');
+    box-shadow: 0 0 0 1px theme('colors.accent.DEFAULT');
+    transition: transform 0.1s ease-out;
+  }
+  input[type='range']::-moz-range-thumb:hover { transform: scale(1.08); }
+
+  kbd {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: theme('colors.ink.2');
+    background: theme('colors.surface.DEFAULT');
+    border: 1px solid theme('colors.line.2');
+    border-radius: 4px;
+    padding: 1px 5px;
+  }
+
+  /* Reading-mode wave colours: foreground path appears only while playing. */
+  .rchar .rwave { color: theme('colors.ink.2'); opacity: 0.6; transition: color 150ms, opacity 150ms; }
+  .rchar.current   .rwave { color: theme('colors.accent.DEFAULT'); opacity: 1; }
+  .rchar.correct   .rwave { color: theme('colors.correct'); opacity: 0.4; }
+  .rchar.incorrect .rwave { color: theme('colors.incorrect'); opacity: 0.55; }
+  .rwave path.fg { opacity: 0; }
+  .rchar.playing .rwave path.fg { opacity: 1; }
+  .rchar.playing { background: theme('colors.accent.dim'); }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0; }
+}
