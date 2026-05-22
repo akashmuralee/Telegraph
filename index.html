@@ -107,6 +107,10 @@
             transition: border-color 0.15s, color 0.15s, background 0.15s, transform 0.3s;
             outline: none;
             flex-shrink: 0;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
         }
         .settings-btn:hover { border-color: var(--border2); color: var(--text2); }
         .settings-btn:active { background: var(--surface2); }
@@ -307,6 +311,10 @@
             text-transform: uppercase;
             cursor: pointer;
             transition: border-color 0.15s, color 0.15s, background 0.15s;
+            -webkit-tap-highlight-color: transparent;
+            -webkit-user-select: none;
+            user-select: none;
+            touch-action: manipulation;
         }
         .ctrl-btn:hover  { border-color: var(--border2); color: var(--text); }
         .ctrl-btn:active { background: var(--surface2); }
@@ -602,9 +610,9 @@
     }
 
     function onUp(e) {
-        if (e?.type === 'touchend') e.preventDefault();
         if (e?.type === 'keyup' && e.key !== ' ') return;
         if (!isPressed) return;
+        if (e?.type === 'touchend') e.preventDefault();
 
         isPressed = false;
         keyWrap.classList.remove('active');
@@ -677,12 +685,18 @@
     });
     window.addEventListener('keyup', onUp);
 
-    clearBtn.addEventListener('click', () => {
+    function doBack(e) { e.preventDefault(); handleBack(); }
+    function doClear(e) {
+        e.preventDefault();
         decodedText = ''; currentSeq = '';
         if (spaceTimer) { clearTimeout(spaceTimer); spaceTimer = null; }
         renderOutput(); renderSymbols(); resetWpm();
-    });
-    backBtn.addEventListener('click', handleBack);
+    }
+
+    clearBtn.addEventListener('click', doClear);
+    clearBtn.addEventListener('touchend', doClear, { passive: false });
+    backBtn.addEventListener('click', doBack);
+    backBtn.addEventListener('touchend', doBack, { passive: false });
 </script>
 </body>
 </html>
