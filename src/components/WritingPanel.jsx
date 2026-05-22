@@ -28,6 +28,7 @@ export function WritingPanel({
   hint,
   currentSeq,
   timerProgress = 0,
+  visibleLines = 3,
 }) {
   const wrapRef = useRef(null);
 
@@ -49,7 +50,11 @@ export function WritingPanel({
       <div
         ref={wrapRef}
         className="text-[24px] leading-[1.7] tracking-[0.04em] text-pending overflow-hidden relative"
-        style={{ minHeight: 'calc(1.7em * 3)', maxHeight: 'calc(1.7em * 3)' }}
+        style={{
+          minHeight: `calc(1.7em * ${visibleLines})`,
+          maxHeight: `calc(1.7em * ${visibleLines})`,
+          transition: 'min-height 320ms cubic-bezier(0.4, 0, 0.2, 1), max-height 320ms cubic-bezier(0.4, 0, 0.2, 1)',
+        }}
       >
         {words.map((w, wi) => {
           const tw = typed[wi] || '';
@@ -87,7 +92,7 @@ export function WritingPanel({
       {/* "Now" pill — doubles as the per-word time progress bar. A faint
           accent fill depletes from the right as the timer ticks down.
           Fixed height so toggling the hint on/off doesn't shift the bar. */}
-      <div className="relative overflow-hidden flex items-center gap-2.5 h-[36px] mt-5 px-3.5 bg-surface border border-line rounded-full">
+      <div className="relative overflow-hidden flex items-center gap-2.5 h-[36px] mt-8 px-3.5 bg-surface border border-line rounded-full">
         {!finished && (
           <div
             aria-hidden

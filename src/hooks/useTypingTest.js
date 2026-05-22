@@ -11,13 +11,16 @@ const initialState = (count) => {
     correctChars: 0,
     totalChars: 0,
     finished: false,
+    // Monotonic counter bumped on every RESET so dependents (timers, etc.)
+    // can detect a new run even when wordIdx happens to stay at 0.
+    version: 0,
   };
 };
 
 function reducer(state, action) {
   switch (action.type) {
     case 'RESET':
-      return initialState(action.count);
+      return { ...initialState(action.count), version: (state?.version ?? 0) + 1 };
 
     case 'COMMIT_CHAR': {
       if (state.finished) return state;

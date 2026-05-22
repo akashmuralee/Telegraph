@@ -1,4 +1,5 @@
 import { GearIcon } from './Icons';
+import { MonkeyMorseLogo } from './MonkeyMorseLogo';
 
 function StatPill({ value, label }) {
   return (
@@ -14,8 +15,11 @@ function StatPill({ value, label }) {
 export function Header({ wpm, accuracy, settingsOpen, onToggleSettings }) {
   return (
     <header className="flex justify-between items-center mb-5">
-      <span className="font-sans font-medium text-[12px] tracking-[0.22em] uppercase text-ink-3">
-        Monkey Morse
+      <span className="flex items-center gap-2.5">
+        <MonkeyMorseLogo size={38} />
+        <span className="font-sans font-medium text-[15px] tracking-[0.18em] uppercase text-ink-3">
+          Monkey Morse
+        </span>
       </span>
       <div className="flex items-center gap-2">
         <StatPill value={wpm} label="wpm" />

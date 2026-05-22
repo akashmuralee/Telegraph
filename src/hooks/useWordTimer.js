@@ -3,7 +3,7 @@ import { useEffect, useRef, useState } from 'react';
 // Per-word countdown. Restarts whenever `wordIdx` changes (i.e. when the
 // active word changes) or when `durationMs` changes. Calls `onTimeout`
 // exactly once when the duration elapses.
-export function useWordTimer({ enabled, durationMs, wordIdx, onTimeout }) {
+export function useWordTimer({ enabled, durationMs, wordIdx, testVersion = 0, onTimeout }) {
   const [elapsedMs, setElapsedMs] = useState(0);
   const onTimeoutRef = useRef(onTimeout);
 
@@ -32,7 +32,7 @@ export function useWordTimer({ enabled, durationMs, wordIdx, onTimeout }) {
     }, 80);
 
     return () => clearInterval(id);
-  }, [enabled, durationMs, wordIdx]);
+  }, [enabled, durationMs, wordIdx, testVersion]);
 
   const progress = durationMs > 0 ? Math.min(1, elapsedMs / durationMs) : 0;
   const remaining = Math.max(0, durationMs - elapsedMs);

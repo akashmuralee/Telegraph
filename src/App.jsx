@@ -23,6 +23,9 @@ const DEFAULT_SETTINGS = {
   wordSpaceMs: 1600,
 };
 
+// How many lines of words the writing-mode field shows, scaled by word count.
+const VISIBLE_LINES_BY_COUNT = { 15: 2, 25: 3, 50: 5, 100: 7 };
+
 export default function App() {
   const [mode, setMode] = useState('writing'); // 'writing' | 'reading'
   const [settings, setSettings] = useState(DEFAULT_SETTINGS);
@@ -36,6 +39,7 @@ export default function App() {
     enabled: !test.finished,
     durationMs: settings.secondsPerWord * 1000,
     wordIdx: test.wordIdx,
+    testVersion: test.version,
     onTimeout: useCallback(() => test.commitSpace(), [test]),
   });
   const readingContainerRef = useRef(null);
@@ -186,6 +190,7 @@ export default function App() {
                 hint={settings.hint}
                 currentSeq={morseKey.currentSeq}
                 timerProgress={timer.progress}
+                visibleLines={VISIBLE_LINES_BY_COUNT[settings.wordCount] ?? 3}
               />
             )}
 
@@ -214,7 +219,7 @@ export default function App() {
             )}
           </div>
 
-          <div className="mt-3">
+          <div className="mt-8">
             <Controls onRestart={handleRestart} />
           </div>
         </div>
